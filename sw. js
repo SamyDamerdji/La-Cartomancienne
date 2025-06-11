@@ -1,62 +1,66 @@
-// --- VERSION CORRIGÉE de sw.js ---
+// --- VERSION CORRIGÉE ET FINALE de sw.js ---
 
-const CACHE_NAME = 'cartomancie-v4'; // Nouvelle version pour forcer la mise à jour
+const CACHE_NAME = 'cartomancie-v6'; // J'incrémente la version pour forcer une mise à jour propre
 const urlsToCache = [
-  '/',             // La racine du site
-  '/index.html',   // Le fichier principal
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  './',             // La page d'accueil (la racine du projet)
+  './index.html',   // Le fichier HTML principal
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+  // Les images des cartes seront mises en cache dynamiquement lors de leur premier chargement
 ];
 
-// Le reste du fichier est identique et correct...
+// Installe le Service Worker et met en cache les fichiers de base
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Mise en cache des fichiers de base');
+        console.log('Cache ouvert pour mise en cache initiale');
         return cache.addAll(urlsToCache);
       })
   );
+  self.skipWaiting();
 });
 
+// Active le Service Worker et nettoie les anciens caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME)
+          .map(cacheName => caches.delete(cacheName))
+      );
+    })
+  );
+});
+
+// Intercepte les requêtes réseau pour servir depuis le cache si possible
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
+        // Si la ressource est dans le cache, on la sert
         if (response) {
           return response;
         }
+        // Sinon, on la récupère sur le réseau
         return fetch(event.request).then(
           function(response) {
-            if(!response || response.status !== 200) {
+            // On ne met en cache que les requêtes valides et de type GET
+            if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
               return response;
             }
-            if(event.request.method !== 'GET') {
-              return response;
-            }
+
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
               .then(function(cache) {
                 cache.put(event.request, responseToCache);
               });
+
             return response;
           }
         );
       })
-    );
-});
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
   );
 });
