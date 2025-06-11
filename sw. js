@@ -1,10 +1,13 @@
-const CACHE_NAME = 'cartomancie-v2'; // J'ai changé le nom pour forcer la mise à jour
+// --- VERSION CORRIGÉE DE sw.js ---
+
+const CACHE_NAME = 'cartomancie-v3'; // Je change la version pour forcer une mise à jour du cache
 const urlsToCache = [
-  '/La-Cartomancienne/',
-  '/La-Cartomancienne/index.html',
-  '/La-Cartomancienne/manifest.json',
-  '/La-Cartomancienne/icons/icon-192.png',
-  '/La-Cartomancienne/icons/icon-512.png'
+  './', // Représente la racine du projet
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+  // Le service worker mettra en cache les images des cartes au fur et à mesure
 ];
 
 // Étape d'installation : on met en cache les fichiers de base
@@ -32,7 +35,12 @@ self.addEventListener('fetch', event => {
         return fetch(event.request).then(
           function(response) {
             // On vérifie que la réponse est valide
-            if(!response || response.status !== 200 || response.type !== 'basic') {
+            if(!response || response.status !== 200) {
+              return response;
+            }
+
+            // On ne met en cache que les requêtes GET (pour éviter les erreurs)
+            if(event.request.method !== 'GET') {
               return response;
             }
 
@@ -48,4 +56,19 @@ self.addEventListener('fetch', event => {
         );
       })
     );
+});
+
+// Étape d'activation : on nettoie les anciens caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
 });
