@@ -3,7 +3,7 @@
   "short_name": "Cartomancie",
   "description": "Découvrez les arcanes, maîtrisez votre intuition.",
   "start_url": ".",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#f3f5f8",
   "theme_color": "#6D5BBA",
   "icons": [
