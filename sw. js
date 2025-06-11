@@ -1,0 +1,87 @@
+// Nom du cache pour notre application. Changez ce nom si vous faites des mises à jour majeures du cache.
+const CACHE_NAME = 'cartomancie-elegante-v1';
+
+// Liste des fichiers essentiels de l'application à mettre en cache dès l'installation.
+const CORE_ASSETS = [
+  '/', // La page d'accueil
+  '/index.html', // Le fichier HTML principal
+  '/manifest.json' // Le fichier manifeste de la PWA
+  // Note : les icônes et les images des cartes ne sont pas listées ici.
+  // Elles seront mises en cache dynamiquement pour ne pas surcharger la première installation.
+];
+
+// Étape 1 : Installation du Service Worker
+self.addEventListener('install', event => {
+  console.log('Service Worker: Installation en cours...');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Service Worker: Mise en cache des ressources de base');
+        return cache.addAll(CORE_ASSETS);
+      })
+      .catch(error => {
+        console.error('Service Worker: Échec de la mise en cache initiale', error);
+      })
+  );
+});
+
+// Étape 2 : Activation du Service Worker et nettoyage des anciens caches
+self.addEventListener('activate', event => {
+  console.log('Service Worker: Activation...');
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          // Si le nom d'un cache existant est différent du nouveau, on le supprime.
+          if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Suppression de l"ancien cache', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  return self.clients.claim();
+});
+
+// Étape 3 : Interception des requêtes réseau (Fetch)
+self.addEventListener('fetch', event => {
+  // On utilise une stratégie "Cache, puis réseau" (Cache then Network)
+  event.respondWith(
+    caches.match(event.request)
+      .then(cachedResponse => {
+        // 1. Si la ressource est DÉJÀ dans le cache, on la retourne immédiatement.
+        if (cachedResponse) {
+          // console.log('Service Worker: Ressource trouvée dans le cache:', event.request.url);
+          return cachedResponse;
+        }
+
+        // 2. Si la ressource n'est PAS dans le cache, on va la chercher sur le réseau.
+        // console.log('Service Worker: Ressource non trouvée en cache, fetch sur le réseau:', event.request.url);
+        return fetch(event.request).then(
+          networkResponse => {
+            // On vérifie si la réponse du réseau est valide
+            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+              return networkResponse;
+            }
+
+            // On clone la réponse pour pouvoir la mettre en cache et la retourner au navigateur
+            const responseToCache = networkResponse.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                // On met la nouvelle ressource en cache pour les prochaines fois.
+                cache.put(event.request, responseToCache);
+              });
+
+            return networkResponse;
+          }
+        );
+      })
+      .catch(error => {
+        // Gère les erreurs de fetch (par exemple, si on est hors-ligne et que la ressource n'est pas en cache)
+        console.error('Service Worker: Erreur de fetch', error);
+        // On pourrait retourner une page "hors-ligne" de secours ici si nécessaire.
+      })
+  );
+});
