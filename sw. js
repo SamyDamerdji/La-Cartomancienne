@@ -1,16 +1,15 @@
-// --- VERSION CORRIGÉE DE sw.js ---
+// --- VERSION CORRIGÉE de sw.js ---
 
-const CACHE_NAME = 'cartomancie-v3'; // Je change la version pour forcer une mise à jour du cache
+const CACHE_NAME = 'cartomancie-v4'; // Nouvelle version pour forcer la mise à jour
 const urlsToCache = [
-  './', // Représente la racine du projet
-  './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
-  // Le service worker mettra en cache les images des cartes au fur et à mesure
+  '/',             // La racine du site
+  '/index.html',   // Le fichier principal
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
 ];
 
-// Étape d'installation : on met en cache les fichiers de base
+// Le reste du fichier est identique et correct...
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -21,36 +20,26 @@ self.addEventListener('install', event => {
   );
 });
 
-// Étape de Fetch : on sert les fichiers
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Si la ressource est dans le cache, on la renvoie
         if (response) {
           return response;
         }
-
-        // Sinon, on la récupère sur le réseau, on la met en cache ET on la renvoie
         return fetch(event.request).then(
           function(response) {
-            // On vérifie que la réponse est valide
             if(!response || response.status !== 200) {
               return response;
             }
-
-            // On ne met en cache que les requêtes GET (pour éviter les erreurs)
             if(event.request.method !== 'GET') {
               return response;
             }
-
             const responseToCache = response.clone();
-
             caches.open(CACHE_NAME)
               .then(function(cache) {
                 cache.put(event.request, responseToCache);
               });
-
             return response;
           }
         );
@@ -58,7 +47,6 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Étape d'activation : on nettoie les anciens caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
